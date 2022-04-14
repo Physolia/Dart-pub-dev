@@ -8,13 +8,14 @@ import 'package:_pub_shared/search/search_form.dart' show SearchForm;
 
 import '../../audit/models.dart';
 import '../../frontend/templates/views/account/activity_log_table.dart';
-import '../../package/search_adapter.dart' show SearchResultPage;
+import '../../package/models.dart';
 import '../../publisher/models.dart' show Publisher, PublisherSummary;
 import '../../shared/urls.dart' as urls;
 import '../dom/dom.dart' as d;
 import 'detail_page.dart';
 import 'layout.dart';
-import 'listing.dart';
+import 'views/landing/mini_list.dart';
+import 'views/landing/page.dart';
 import 'views/publisher/admin_page.dart';
 import 'views/publisher/create_page.dart';
 import 'views/publisher/header_metadata.dart';
@@ -41,31 +42,28 @@ String renderPublisherListPage(List<PublisherSummary> publishers) {
   );
 }
 
-/// Renders the search results on the publisher's packages page.
+/// Renders the publisher's packages page.
 String renderPublisherPackagesPage({
   required Publisher publisher,
-  required SearchResultPage searchResultPage,
-  required String? messageFromBackend,
-  required PageLinks pageLinks,
+  required List<PackageView> topPackages,
   required SearchForm searchForm,
-  required int totalCount,
   required bool isAdmin,
 }) {
-  final isSearch = searchForm.hasQuery;
-  String title = 'Packages of publisher ${publisher.publisherId}';
-  if (isSearch && pageLinks.currentPage! > 1) {
-    title += ' | Page ${pageLinks.currentPage}';
-  }
+  final title = 'Publisher ${publisher.publisherId}';
 
   final tabContent = d.fragment([
-    listingInfo(
-      searchForm: searchForm,
-      totalCount: totalCount,
-      ownedBy: publisher.publisherId,
-      messageFromBackend: messageFromBackend,
-    ),
-    if (searchResultPage.hasHit) packageList(searchResultPage),
-    paginationNode(pageLinks),
+    if (topPackages.isEmpty) d.p(text: 'The publisher has no packages yet.'),
+    if (topPackages.isNotEmpty)
+      homePageBlockNode(
+        shortId: 'publisher',
+        title: 'Popular packages',
+        info: d.text('Some of the most popular packages of this publisher.'),
+        content: miniListNode('publisher-packages', topPackages),
+        viewAllUrl: urls.searchUrl(q: 'publisher:${publisher.publisherId}'),
+        viewAllEvent: 'view-all-event',
+        viewAllLabel: 'Search the publisher\'s packages',
+        viewAllExtraClass: 'left',
+      ),
   ]);
 
   final tabs = <Tab>[
@@ -95,9 +93,8 @@ String renderPublisherPackagesPage({
     publisherId: publisher.publisherId,
     searchForm: searchForm,
     canonicalUrl: searchForm.toSearchLink(),
-    // index only the first page, if it has packages displayed without search query
-    noIndex:
-        searchResultPage.hasNoHit || isSearch || pageLinks.currentPage! > 1,
+    // index only if it has packages displayed
+    noIndex: topPackages.isNotEmpty,
     mainClasses: [wideHeaderDetailPageClassName],
   );
 }
